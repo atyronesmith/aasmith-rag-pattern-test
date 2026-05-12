@@ -170,16 +170,24 @@ echo "Step 1a: Rendering pattern-install chart..."
 helm template "${HELM_OPTS[@]}" oci://quay.io/validatedpatterns/pattern-install > "$TMPDIR/all.yaml" 2>/dev/null
 
 echo "Step 1b: Splitting CRDs and Pattern CR..."
-csplit -f "$TMPDIR/doc" -z "$TMPDIR/all.yaml" '/^---$/' '{*}' 2>/dev/null
-cat /dev/null > "$TMPDIR/crds.yaml"
-cat /dev/null > "$TMPDIR/pattern.yaml"
-for f in "$TMPDIR"/doc*; do
-    if grep -q 'kind: Pattern' "$f" 2>/dev/null; then
-        cat "$f" >> "$TMPDIR/pattern.yaml"
-    elif grep -q 'kind:' "$f" 2>/dev/null; then
-        cat "$f" >> "$TMPDIR/crds.yaml"
-    fi
-done
+python3 -c "
+import sys
+docs = open('$TMPDIR/all.yaml').read().split('---')
+crds = []
+pattern = []
+for doc in docs:
+    stripped = doc.strip()
+    if not stripped:
+        continue
+    if 'kind: Pattern' in stripped:
+        pattern.append(stripped)
+    elif 'kind:' in stripped:
+        crds.append(stripped)
+with open('$TMPDIR/crds.yaml', 'w') as f:
+    f.write('\n---\n'.join(crds))
+with open('$TMPDIR/pattern.yaml', 'w') as f:
+    f.write('\n---\n'.join(pattern))
+"
 
 echo "Step 1c: Applying CRDs, operator subscription, and configmap..."
 oc apply -f "$TMPDIR/crds.yaml" 2>&1
