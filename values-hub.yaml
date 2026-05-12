@@ -61,7 +61,7 @@ clusterGroup:
       namespace: rag
       project: hub
       repoURL: https://github.com/rh-ai-quickstart/RAG.git
-      path: '.'
+      path: deploy/helm/rag
       chartVersion: main
       extraValueFiles:
       - /overrides/rag.yaml
