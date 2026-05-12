@@ -25,8 +25,9 @@ if ! command -v helm &>/dev/null; then
     exit 1
 fi
 
-if ! oc whoami &>/dev/null; then
-    echo "oc not logged in. Attempting CRC login..."
+CURRENT_USER=$(oc whoami 2>/dev/null || echo "")
+if [ -z "$CURRENT_USER" ] || [ "$CURRENT_USER" != "kubeadmin" ]; then
+    echo "  Need kubeadmin access (current: ${CURRENT_USER:-not logged in}). Logging in..."
     eval "$(crc oc-env)"
     KUBEADMIN_PASS=$(crc console --credentials 2>&1 | grep kubeadmin | grep -oE "'[^']+'" | tail -1 | tr -d "'")
     if [ -n "$KUBEADMIN_PASS" ]; then
