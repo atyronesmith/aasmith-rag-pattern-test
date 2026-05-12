@@ -151,18 +151,36 @@ echo ""
 
 cd "$PATTERN_DIR"
 
-echo "Step 1: Rendering and applying pattern-install chart..."
-helm template \
-    --include-crds \
-    --name-template "$PATTERN_NAME" \
-    -f values-global.yaml \
-    --set main.git.repoURL="$TARGET_REPO" \
-    --set main.git.revision="$TARGET_BRANCH" \
-    --set global.pattern="$PATTERN_NAME" \
-    --set global.clusterDomain="$(oc get ingress.config cluster -o jsonpath='{.spec.domain}' 2>/dev/null || echo 'apps-crc.testing')" \
-    --set global.clusterVersion="$(oc get clusterversion version -o jsonpath='{.status.desired.version}' 2>/dev/null || echo '4.21')" \
-    --set global.clusterPlatform="None" \
-    oci://quay.io/validatedpatterns/pattern-install 2>&1 | oc apply -f- 2>&1
+HELM_OPTS=(
+    --include-crds
+    --name-template "$PATTERN_NAME"
+    -f values-global.yaml
+    --set main.git.repoURL="$TARGET_REPO"
+    --set main.git.revision="$TARGET_BRANCH"
+    --set global.pattern="$PATTERN_NAME"
+    --set global.clusterDomain="$(oc get ingress.config cluster -o jsonpath='{.spec.domain}' 2>/dev/null || echo 'apps-crc.testing')"
+    --set global.clusterVersion="$(oc get clusterversion version -o jsonpath='{.status.desired.version}' 2>/dev/null || echo '4.21')"
+    --set global.clusterPlatform="None"
+)
+
+echo "Step 1a: Rendering pattern-install chart..."
+RENDERED=$(helm template "${HELM_OPTS[@]}" oci://quay.io/validatedpatterns/pattern-install 2>/dev/null)
+
+echo "Step 1b: Applying CRDs and non-Pattern resources..."
+echo "$RENDERED" | grep -v '^---$' | awk 'BEGIN{RS="---\n"; ORS="---\n"} !/kind: Pattern/' | oc apply -f- 2>&1
+
+echo "Step 1c: Waiting for Pattern CRD to register..."
+for i in $(seq 1 30); do
+    if oc get crd patterns.gitops.hybrid-cloud-patterns.io &>/dev/null; then
+        echo "  Pattern CRD ready."
+        break
+    fi
+    echo "  Waiting for CRD... ($i/30)"
+    sleep 5
+done
+
+echo "Step 1d: Applying Pattern CR..."
+echo "$RENDERED" | grep -v '^---$' | awk 'BEGIN{RS="---\n"; ORS="---\n"} /kind: Pattern/' | oc apply -f- 2>&1
 
 echo ""
 echo "Step 2: Waiting for ArgoCD to be ready..."
