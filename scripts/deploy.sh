@@ -1,9 +1,11 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PATTERN_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 VALUES_SECRET_FILE="${VALUES_SECRET:-$HOME/values-secret-rag-pattern.yaml}"
+PATTERN_NAME="rag-pattern"
+ARGOCD_NS="openshift-gitops"
 
 echo "=== RAG Validated Pattern — CRC Deployment ==="
 echo "  Pattern dir: $PATTERN_DIR"
@@ -18,8 +20,8 @@ if ! command -v oc &>/dev/null; then
     exit 1
 fi
 
-if ! command -v podman &>/dev/null; then
-    echo "ERROR: podman not found."
+if ! command -v helm &>/dev/null; then
+    echo "ERROR: helm not found. Install: brew install helm"
     exit 1
 fi
 
@@ -53,11 +55,16 @@ if [ -d .git ]; then
         git commit -m "Pre-deploy snapshot" --allow-empty 2>/dev/null || true
     fi
 else
-    echo "  Initializing git repo (required by pattern.sh)..."
+    echo "  Initializing git repo (required by VP framework)..."
     git init
     git add -A
     git commit -m "Initial pattern"
 fi
+
+TARGET_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+TARGET_REPO=$(git remote get-url origin 2>/dev/null || echo "file://$PATTERN_DIR")
+echo "  Branch: $TARGET_BRANCH"
+echo "  Repo: $TARGET_REPO"
 echo ""
 
 # --- Secrets file ---
@@ -137,17 +144,46 @@ SECRETS_EOF
 fi
 echo ""
 
-# --- Deploy ---
-echo "--- Deploying pattern ---"
-echo "  Running: ./pattern.sh make install"
+# --- Deploy pattern-install chart ---
+echo "--- Deploying pattern (direct helm, bypassing utility container) ---"
 echo ""
 
-export VALUES_SECRET="$VALUES_SECRET_FILE"
 cd "$PATTERN_DIR"
-./pattern.sh make install
+
+echo "Step 1: Rendering and applying pattern-install chart..."
+helm template \
+    --include-crds \
+    --name-template "$PATTERN_NAME" \
+    -f values-global.yaml \
+    --set main.git.repoURL="$TARGET_REPO" \
+    --set main.git.revision="$TARGET_BRANCH" \
+    --set global.pattern="$PATTERN_NAME" \
+    --set global.clusterDomain="$(oc get ingress.config cluster -o jsonpath='{.spec.domain}' 2>/dev/null || echo 'apps-crc.testing')" \
+    --set global.clusterVersion="$(oc get clusterversion version -o jsonpath='{.status.desired.version}' 2>/dev/null || echo '4.21')" \
+    --set global.clusterPlatform="None" \
+    oci://quay.io/validatedpatterns/pattern-install 2>&1 | oc apply -f- 2>&1
+
+echo ""
+echo "Step 2: Waiting for ArgoCD to be ready..."
+for i in $(seq 1 30); do
+    if oc get pods -n "$ARGOCD_NS" --no-headers 2>/dev/null | grep -q "Running"; then
+        echo "  ArgoCD pods running."
+        break
+    fi
+    echo "  Waiting... ($i/30)"
+    sleep 10
+done
+
+echo ""
+echo "Step 3: Checking ArgoCD applications..."
+sleep 15
+oc get applications.argoproj.io -n "$ARGOCD_NS" 2>/dev/null || echo "  No applications yet — may take a few minutes."
 
 echo ""
 echo "=== Deploy complete ==="
 echo ""
 echo "Operators and ArgoCD will take 5-10 minutes to stabilize."
-echo "Run: ./scripts/validate-deployment.sh"
+echo "Next steps:"
+echo "  1. Watch progress:  oc get applications.argoproj.io -n $ARGOCD_NS -w"
+echo "  2. Validate:        ./scripts/validate-deployment.sh"
+echo "  3. Teardown:        ./scripts/teardown.sh"
