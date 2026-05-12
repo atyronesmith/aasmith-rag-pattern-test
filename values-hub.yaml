@@ -1,0 +1,93 @@
+clusterGroup:
+  name: hub
+  isHubCluster: true
+  namespaces:
+  - vault
+  - golang-external-secrets
+  - openshift-nfd
+  - nvidia-gpu-operator
+  - redhat-ods-operator:
+      operatorGroup: true
+      targetNamespaces: []
+  - openshift-serverless:
+      operatorGroup: true
+      targetNamespaces: []
+  - rag:
+      operatorGroup: true
+      targetNamespaces:
+      - rag
+      labels:
+        opendatahub.io/dashboard: 'true'
+        modelmesh-enabled: 'false'
+  subscriptions:
+    nfd:
+      name: nfd
+      namespace: openshift-nfd
+    nvidia-gpu:
+      name: gpu-operator-certified
+      namespace: nvidia-gpu-operator
+      source: certified-operators
+    openshift-ai:
+      name: rhods-operator
+      namespace: redhat-ods-operator
+    openshift-pipelines:
+      name: openshift-pipelines-operator-rh
+      namespace: openshift-operators
+    serverless:
+      name: serverless-operator
+      namespace: openshift-serverless
+    servicemesh:
+      name: servicemeshoperator
+      namespace: openshift-operators
+  projects:
+  - hub
+  sharedValueFiles:
+  - /overrides/values-{{ $.Values.global.clusterPlatform }}.yaml
+  applications:
+    vault:
+      name: vault
+      namespace: vault
+      project: hub
+      chart: hashicorp-vault
+      chartVersion: 0.1.*
+    golang-external-secrets:
+      name: golang-external-secrets
+      namespace: golang-external-secrets
+      project: hub
+      chart: golang-external-secrets
+      chartVersion: 0.2.*
+    rag:
+      name: rag
+      namespace: rag
+      project: hub
+      repoURL: https://github.com/rh-ai-quickstart/RAG.git
+      path: ''
+      chartVersion: main
+      extraValueFiles:
+      - /overrides/rag.yaml
+      ignoreDifferences:
+      - group: route.openshift.io
+        kind: Route
+        jsonPointers:
+        - /spec/host
+        - /spec/alternateBackends
+      - group: serving.kserve.io
+        kind: InferenceService
+        jsonPointers:
+        - /metadata/annotations
+        - /metadata/labels
+      - group: kubeflow.org
+        kind: Notebook
+        jsonPointers:
+        - /spec
+        - /metadata/annotations
+        - /metadata/labels
+      - group: datasciencepipelinesapplications.opendatahub.io
+        kind: DataSciencePipelinesApplication
+        jsonPointers:
+        - /spec
+    pattern-secrets:
+      name: pattern-secrets
+      namespace: rag
+      project: hub
+      path: charts/pattern-secrets

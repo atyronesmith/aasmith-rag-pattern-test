@@ -1,0 +1,238 @@
+profile_version: '1.0'
+source_repo_url: https://github.com/rh-ai-quickstart/RAG.git
+source_chart_path: ''
+source_fingerprint:
+  chart_yaml_hash: 9cb166f8363af010511c3c149e833c1c42e2c1e1c5a9e7b19ddc75c730483abd
+  values_yaml_hash: c10a286d4856e546b7090dbfaa06423ba07538b84727392ec47cef506cbf15c2
+  subchart_hashes:
+    pgvector: e5754b91d1fe6a1f66430f5c2d4e4c8a713bafa56cfb86afbf1d2c39d57f4bf9
+    llm-service: db141dedde93d1a3a1050b24f5935aa1f2810d7a54bd78956f09c53fddbeba82
+    configure-pipeline: facc62a15bb47d57b406627acedfb39e917bf5eba6e47466155ed3057a86edb4
+    ingestion-pipeline: e3d3bf10932bec3069cd42e6d40788be767103812e7e6cdc3e13e27800f6a0cb
+    llama-stack: 006dacb01dbc6b3ee29dc9f6e3108cce5bc5bb444755a0427ac3644c59f3df59
+    mcp-servers: 6e628301583bcd200d9442f86644c66f7ce63fe20ba112c95e24b22ca813ecdd
+  operator_versions:
+    nfd: ''
+    nvidia-gpu: ''
+    openshift-ai: ''
+    openshift-pipelines: ''
+    serverless: ''
+    servicemesh: ''
+  timestamp: '2026-05-06T20:15:49.676477+00:00'
+secret_decisions:
+- name: user
+  group: pgvector
+  classification: static-config
+  vault_key: user
+  source_path: pgvector.secret.user
+  default_value: ''
+- name: password
+  group: pgvector
+  classification: auto-generate
+  vault_key: password
+  source_path: pgvector.secret.password
+  default_value: ''
+- name: host
+  group: pgvector
+  classification: static-config
+  vault_key: host
+  source_path: pgvector.secret.host
+  default_value: ''
+- name: port
+  group: pgvector
+  classification: static-config
+  vault_key: port
+  source_path: pgvector.secret.port
+  default_value: ''
+- name: dbname
+  group: pgvector
+  classification: static-config
+  vault_key: dbname
+  source_path: pgvector.secret.dbname
+  default_value: ''
+- name: jdbc-uri
+  group: pgvector
+  classification: vault-secret
+  vault_key: jdbc-uri
+  source_path: pgvector.secret.jdbc-uri
+  default_value: ''
+- name: uri
+  group: pgvector
+  classification: vault-secret
+  vault_key: uri
+  source_path: pgvector.secret.uri
+  default_value: ''
+- name: HF_TOKEN
+  group: llm-service
+  classification: auto-generate
+  vault_key: HF_TOKEN
+  source_path: llm-service.secret.HF_TOKEN
+  default_value: ''
+- name: SOURCE
+  group: configure-pipeline
+  classification: vault-secret
+  vault_key: SOURCE
+  source_path: configure-pipeline.secret.SOURCE
+  default_value: ''
+- name: EMBEDDING_MODEL
+  group: configure-pipeline
+  classification: vault-secret
+  vault_key: EMBEDDING_MODEL
+  source_path: configure-pipeline.secret.EMBEDDING_MODEL
+  default_value: ''
+- name: NAME
+  group: configure-pipeline
+  classification: vault-secret
+  vault_key: NAME
+  source_path: configure-pipeline.secret.NAME
+  default_value: ''
+- name: VERSION
+  group: configure-pipeline
+  classification: vault-secret
+  vault_key: VERSION
+  source_path: configure-pipeline.secret.VERSION
+  default_value: ''
+- name: ACCESS_KEY_ID
+  group: configure-pipeline
+  classification: vault-secret
+  vault_key: ACCESS_KEY_ID
+  source_path: configure-pipeline.secret.ACCESS_KEY_ID
+  default_value: ''
+- name: SECRET_ACCESS_KEY
+  group: configure-pipeline
+  classification: auto-generate
+  vault_key: SECRET_ACCESS_KEY
+  source_path: configure-pipeline.secret.SECRET_ACCESS_KEY
+  default_value: ''
+- name: ENDPOINT_URL
+  group: configure-pipeline
+  classification: static-config
+  vault_key: ENDPOINT_URL
+  source_path: configure-pipeline.secret.ENDPOINT_URL
+  default_value: ''
+- name: BUCKET_NAME
+  group: configure-pipeline
+  classification: vault-secret
+  vault_key: BUCKET_NAME
+  source_path: configure-pipeline.secret.BUCKET_NAME
+  default_value: ''
+- name: REGION
+  group: configure-pipeline
+  classification: vault-secret
+  vault_key: REGION
+  source_path: configure-pipeline.secret.REGION
+  default_value: ''
+- name: MINIO_ENDPOINT
+  group: configure-pipeline
+  classification: static-config
+  vault_key: MINIO_ENDPOINT
+  source_path: configure-pipeline.secret.MINIO_ENDPOINT
+  default_value: ''
+- name: MINIO_ACCESS_KEY
+  group: configure-pipeline
+  classification: vault-secret
+  vault_key: MINIO_ACCESS_KEY
+  source_path: configure-pipeline.secret.MINIO_ACCESS_KEY
+  default_value: ''
+- name: MINIO_SECRET_KEY
+  group: configure-pipeline
+  classification: auto-generate
+  vault_key: MINIO_SECRET_KEY
+  source_path: configure-pipeline.secret.MINIO_SECRET_KEY
+  default_value: ''
+- name: LLAMASTACK_BASE_URL
+  group: configure-pipeline
+  classification: vault-secret
+  vault_key: LLAMASTACK_BASE_URL
+  source_path: configure-pipeline.secret.LLAMASTACK_BASE_URL
+  default_value: ''
+- name: DS_PIPELINE_URL
+  group: configure-pipeline
+  classification: vault-secret
+  vault_key: DS_PIPELINE_URL
+  source_path: configure-pipeline.secret.DS_PIPELINE_URL
+  default_value: ''
+- name: GOOGLE_APPLICATION_CREDENTIALS
+  group: llama-stack
+  classification: vault-secret
+  vault_key: GOOGLE_APPLICATION_CREDENTIALS
+  source_path: llama-stack.secret.GOOGLE_APPLICATION_CREDENTIALS
+  default_value: ''
+computed_fields:
+- group: pgvector
+  field_name: jdbc-uri
+  template: '{{ printf "jdbc:postgresql://%s.%s:%s/%s?password=%s&user=%s" .Values.secret.host
+    (include "pgvector.namespace" .) .Values.secret.port .Values.secret.dbname .Values.secret.password
+    .Values.secret.user | b64enc | quote }}'
+  source_fields:
+  - host
+  - port
+  - dbname
+  - password
+  - user
+- group: pgvector
+  field_name: uri
+  template: '{{ printf "postgresql://%s:%s@%s.%s:%s/%s" .Values.secret.user .Values.secret.password
+    .Values.secret.host (include "pgvector.namespace" .) .Values.secret.port .Values.secret.dbname
+    | b64enc | quote }}'
+  source_fields:
+  - user
+  - password
+  - host
+  - port
+  - dbname
+- group: configure-pipeline
+  field_name: ENDPOINT_URL
+  template: '"http://{{ .Values.minio.secret.host }}.{{ .Release.Namespace }}.svc.cluster.local:{{
+    .Values.minio.secret.port }}"'
+  source_fields:
+  - minio
+  - minio
+- group: configure-pipeline
+  field_name: MINIO_ENDPOINT
+  template: '"http://{{ .Values.minio.secret.host }}.{{ .Release.Namespace }}.svc.cluster.local:{{
+    .Values.minio.secret.port }}"'
+  source_fields:
+  - minio
+  - minio
+drift_entries:
+- group: route.openshift.io
+  kind: Route
+  json_pointers:
+  - /spec/host
+  - /spec/alternateBackends
+  reason: known controller-mutated fields
+- group: serving.kserve.io
+  kind: InferenceService
+  json_pointers:
+  - /metadata/annotations
+  - /metadata/labels
+  reason: known controller-mutated fields
+- group: kubeflow.org
+  kind: Notebook
+  json_pointers:
+  - /spec
+  - /metadata/annotations
+  - /metadata/labels
+  reason: known controller-mutated fields
+- group: datasciencepipelinesapplications.opendatahub.io
+  kind: DataSciencePipelinesApplication
+  json_pointers:
+  - /spec
+  reason: known controller-mutated fields
+override_entries:
+- path: pgvector.secret.create
+  value: false
+  reason: Secrets managed by pattern-secrets chart
+- path: llm-service.secret.enabled
+  value: false
+  reason: Secrets managed by pattern-secrets chart
+- path: configure-pipeline.secret.create
+  value: false
+  reason: Secrets managed by pattern-secrets chart
+infra_decisions: []
+vault_prefix: hub
+secret_target_names:
+  pgvector: pgvector
+  llm-service: huggingface-secret
+  configure-pipeline: rag-ingestion-pipeline-secret

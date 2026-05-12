@@ -1,0 +1,9 @@
+pgvector:
+  secret:
+    create: false
+llm-service:
+  secret:
+    enabled: false
+configure-pipeline:
+  secret:
+    create: false

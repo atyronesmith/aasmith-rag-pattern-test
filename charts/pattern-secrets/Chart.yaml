@@ -1,0 +1,5 @@
+apiVersion: v2
+name: pattern-secrets
+version: 0.1.0
+description: ExternalSecret CRDs for rag-pattern
+type: application
