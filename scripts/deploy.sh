@@ -163,13 +163,28 @@ HELM_OPTS=(
     --set global.clusterPlatform="None"
 )
 
+TMPDIR=$(mktemp -d)
+trap "rm -rf $TMPDIR" EXIT
+
 echo "Step 1a: Rendering pattern-install chart..."
-RENDERED=$(helm template "${HELM_OPTS[@]}" oci://quay.io/validatedpatterns/pattern-install 2>/dev/null)
+helm template "${HELM_OPTS[@]}" oci://quay.io/validatedpatterns/pattern-install > "$TMPDIR/all.yaml" 2>/dev/null
 
-echo "Step 1b: Applying CRDs and non-Pattern resources..."
-echo "$RENDERED" | grep -v '^---$' | awk 'BEGIN{RS="---\n"; ORS="---\n"} !/kind: Pattern/' | oc apply -f- 2>&1
+echo "Step 1b: Splitting CRDs and Pattern CR..."
+csplit -f "$TMPDIR/doc" -z "$TMPDIR/all.yaml" '/^---$/' '{*}' 2>/dev/null
+cat /dev/null > "$TMPDIR/crds.yaml"
+cat /dev/null > "$TMPDIR/pattern.yaml"
+for f in "$TMPDIR"/doc*; do
+    if grep -q 'kind: Pattern' "$f" 2>/dev/null; then
+        cat "$f" >> "$TMPDIR/pattern.yaml"
+    elif grep -q 'kind:' "$f" 2>/dev/null; then
+        cat "$f" >> "$TMPDIR/crds.yaml"
+    fi
+done
 
-echo "Step 1c: Waiting for Pattern CRD to register..."
+echo "Step 1c: Applying CRDs, operator subscription, and configmap..."
+oc apply -f "$TMPDIR/crds.yaml" 2>&1
+
+echo "Step 1d: Waiting for Pattern CRD to register..."
 for i in $(seq 1 30); do
     if oc get crd patterns.gitops.hybrid-cloud-patterns.io &>/dev/null; then
         echo "  Pattern CRD ready."
@@ -179,8 +194,8 @@ for i in $(seq 1 30); do
     sleep 5
 done
 
-echo "Step 1d: Applying Pattern CR..."
-echo "$RENDERED" | grep -v '^---$' | awk 'BEGIN{RS="---\n"; ORS="---\n"} /kind: Pattern/' | oc apply -f- 2>&1
+echo "Step 1e: Applying Pattern CR..."
+oc apply -f "$TMPDIR/pattern.yaml" 2>&1
 
 echo ""
 echo "Step 2: Waiting for ArgoCD to be ready..."
